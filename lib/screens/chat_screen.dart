@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 
 final _firestore= FirebaseFirestore.instance;
+User loggedInUser;
 
 
 class ChatScreen extends StatefulWidget {
@@ -16,7 +17,6 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final messageTextController = TextEditingController();
   final _auth =FirebaseAuth.instance;
-  User loggedInUser;
   String messageText;
 
 
@@ -114,10 +114,12 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 class MessageStreamer extends StatelessWidget {
+
   @override
   Widget build(BuildContext context) {
     return  StreamBuilder<QuerySnapshot>(
-        stream: _firestore.collection('messages').snapshots(),
+        stream: _firestore.collection('messages').orderBy('dateTime', descending: false)
+            .snapshots(),
         builder: (_, snapshot){
           if(!snapshot.hasData){
             return Center(
@@ -126,20 +128,30 @@ class MessageStreamer extends StatelessWidget {
               ),
             );
           }
-          final messages= snapshot.data.docs;
+          final messages= snapshot.data.docs.reversed;
           List<MessageBubble> messageWidgets =[];
           for(var message in messages){
             final messageText= message.data()['messageText'];
             final messageSender =message.data()['sender'];
 
-            final messageWidget =MessageBubble(
+            final currentUser=loggedInUser.email;
+            // if (currentUser == messageSender){
+            //
+            // }
+
+
+            final messageBubble =MessageBubble(
                 messageSender: messageSender,
-                messageText: messageText);
-            messageWidgets.add(messageWidget);
+                messageText: messageText,
+                // to check the condition if current user is the same as
+                // logged in user? do below to return true or false:
+                isMe: currentUser == messageSender);
+            messageWidgets.add(messageBubble);
           }
           return Expanded(
             child: ListView(
-              padding: EdgeInsets.symmetric(horizontal: 10.0, vertical: 20.0),
+              padding: EdgeInsets.symmetric(horizontal: 10.0,
+                  vertical: 20.0),
               children: messageWidgets,
             ),
           );
@@ -149,26 +161,32 @@ class MessageStreamer extends StatelessWidget {
 
 
 class MessageBubble extends StatelessWidget {
-  MessageBubble({this.messageSender, this.messageText});
+  MessageBubble({this.messageSender, this.messageText, this.isMe});
   final String messageSender;
   final String messageText;
+  final bool isMe;
+
   @override
   Widget build(BuildContext context) {
 
     return Padding(
       padding: EdgeInsets.all(10.0),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: isMe == true? CrossAxisAlignment.end: CrossAxisAlignment.start,
         children: [
           Text(messageSender,
             style:TextStyle(
               fontSize: 12.0,
-              color: Colors.white ,
+              color: Colors.white54 ,
             ) ,),
           Material(
-            borderRadius: BorderRadius.circular(30.0),
+            borderRadius:isMe== true? BorderRadius.only(topLeft: Radius.circular(30.0),
+                bottomLeft: Radius.circular(30.0),
+            bottomRight: Radius.circular(30.0)) : BorderRadius.only(topRight: Radius.circular(30.0),
+                bottomLeft: Radius.circular(30.0),
+                bottomRight: Radius.circular(30.0)),
             elevation: 6.0,
-            color: Colors.lightBlueAccent,
+            color: isMe == true? Colors.lightBlueAccent : Colors.greenAccent,
             child: Padding(
               padding: EdgeInsets.all(10.0),
               child: Text(messageText,
